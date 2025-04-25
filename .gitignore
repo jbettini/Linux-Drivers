@@ -1,1 +1,5 @@
-little-penguin-1
+little-penguin-1*.o
+*.ko
+*.mod
+*.order
+*.symvers
