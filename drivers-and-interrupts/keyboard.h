@@ -11,6 +11,8 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/input.h>
 
 #define PRESS 1
 #define RELEASE 0
@@ -23,11 +25,12 @@ typedef struct keyboard_key {
     bool            status;
 }   keyboard_key_t;
 
+int	keyboard_init(void);
 void keyboard_init_released(void);
 irqreturn_t keyboard_handler(int irq, void *dev_id);
 
-static keyboard_key_t release_keys[256];
-static keyboard_key_t press_keys[256] = {
+static keyboard_key_t release_keys_set_1[256];
+static keyboard_key_t press_keys_set_1[256] = {
 
     // letters
     [0x1E] =    {'a',   "A",                    0x1E, PRESS},

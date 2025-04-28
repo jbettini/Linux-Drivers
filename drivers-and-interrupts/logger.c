@@ -4,17 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
-
-#define LOGIN_SIZE 8
-#define LOGIN "jbettini"
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("jbettini");
-MODULE_DESCRIPTION("Keylogger");
-
-
-////////////////////////////////////////////////////////////
-// Misc Device Part
+#include "logger.h"
 
 static int my_open(struct inode *node, struct file *file)
 {
@@ -44,6 +34,8 @@ static ssize_t my_read(struct file *file, char __user *user_buf, size_t user_len
 	return 0;
 }
 
+////////////////////////////////////////////////////////////
+// Misc Device Part
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
@@ -53,32 +45,23 @@ static const struct file_operations fops = {
 	.release = my_close,
 };
 
-static struct miscdevice my_misc = {
+struct miscdevice my_misc = {
 	.name = "DriverAndInterrupt",
 	.minor = MISC_DYNAMIC_MINOR,
 	.fops = &fops,
 };
 
-// Misc Device Part
-////////////////////////////////////////////////////////////
-
-static int __init hello(void)
+int logger_init(void)
 {
 	int status = misc_register(&my_misc);
 
 	if (status) {
-		printk(KERN_ALERT "Error: misc register\n");
+		printk(KERN_ALERT "Error: misc register failed\n");
 		return -status;
 	}
-	printk(KERN_INFO "Misc Device Registred at /dev/DriverAndInterrupt\n");
+	printk(KERN_INFO "Misc Device Registred at /dev/Keylogger_Misc\n");
 	return 0;
 }
 
-static void __exit clean(void)
-{
-	misc_deregister(&my_misc);
-	printk(KERN_INFO "Exiting: cleaning up module\n");
-}
-
-module_init(hello);
-module_exit(clean);
+EXPORT_SYMBOL(my_misc);
+EXPORT_SYMBOL(logger_init);
