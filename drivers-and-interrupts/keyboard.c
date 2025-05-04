@@ -233,7 +233,7 @@ void keyboard_add_to_ibuf(char *current_input, int len) {
 
 void keyboard_save_input(keyboard_key_t key) {
     char    buf[128];
-    print_key(key);
+    // print_key(key);
     struct tm tm = keyboard_get_current_time();
     int len = snprintf(buf, 128, "%d:%d:%d %s(%x) %s\n", tm.tm_hour, tm.tm_min, tm.tm_sec, key.name, key.keycode, (key.state ? "press" : "released"));
     ft_lstadd_back(&inputs.inputs_lst, ft_lstnew(ft_strdup(buf)));

