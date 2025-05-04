@@ -1,6 +1,10 @@
 [x] When misc Read all entries in kernels log
-[] Lock a Buffer Access with mutex
-[] when destroyed return smart data of keys
-[] On destroyed save all data in a kernel logfile and in /tmp/logfile
-[] Do stats at the end of /tmp/logfile
+[x] Lock a Buffer Access with mutex
+[x] On destroyed save all data + smart data in a kernel logfile
+[x] Do stats at the end of /tmp/logfile + smart logs
+    [x] Top 5 Pressed
+    [x] Num of backspace
+    [x] Total + repartitions by group
+    [ ] Save all in /tmp/logfile
 [] Load Driver on keyboard plug
+[] Try to handled all weird keys

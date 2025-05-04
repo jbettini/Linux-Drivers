@@ -1,0 +1,5 @@
+SUBSYSTEM=="input", ACTION=="add", ENV{ID_BUS}=="usb", ENV{ID_INPUT_KEYBOARD}=="1", \
+RUN+="/sbin/insmod /home/jbettini/Linux_Drivers/drivers-and-interrupts/key_driver.ko"
+
+SUBSYSTEM=="input", ACTION=="remove", ENV{ID_BUS}=="usb", ENV{ID_INPUT_KEYBOARD}=="1", \
+RUN+="/sbin/rmmod /home/jbettini/Linux_Drivers/drivers-and-interrupts/key_driver.ko"

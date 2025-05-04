@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <linux/slab.h>
 
+
 void	ft_lstadd_back(t_list **alst, t_list *new)
 {
 	t_list	*li;
@@ -67,7 +68,7 @@ void	ft_lstadd_front(t_list **alst, t_list *start)
 char	*ft_strdup(const char *src)
 {
 	char	*str;
-	unsigned long int	i;
+	size_t	i;
 
 	i = 0;
 	str = kmalloc(sizeof(char) * ft_strlen(src) + 1, GFP_KERNEL);
@@ -82,9 +83,9 @@ char	*ft_strdup(const char *src)
 	return (str);
 }
 
-unsigned long int ft_strlen(const char *str)
+size_t ft_strlen(const char *str)
 {
-	unsigned long int	i;
+	size_t	i;
 
 	i = 0;
 	while (str[i])

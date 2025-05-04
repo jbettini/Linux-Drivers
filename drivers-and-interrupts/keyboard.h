@@ -35,17 +35,32 @@
 #define RELEASE 0
 
 
+typedef enum {
+	KEY_LETTERS = 0,
+	KEY_DIGIT,
+	KEY_PUNCTUATION,
+	KEY_SPACES,
+	KEY_NUMPAD,
+    KEY_CONTROL,
+    KEY_FUNCTION,
+    KEY_TOGGLE,
+    KEY_SPECIAL,
+    KEY_NAVIGATION
+} KeyCategory;
+
 typedef struct keyboard_key {
 	uint16_t        value;
     char            *name;
 	uint16_t        keycode;
     bool            state;
+	KeyCategory     category;
+    size_t          usage;
 }   keyboard_key_t;
 
 typedef struct inputs_t {
     t_list *inputs_lst;
     char   *inputs_buffer;
-    unsigned long int ibuf_len;
+    size_t ibuf_len;
 } inputs_t;
 
 
@@ -58,7 +73,11 @@ void keyboard_init_released_set1(void);
 int	keyboard_init(void);
 int keyboard_input_init(void);
 irqreturn_t keyboard_handler(int irq, void *dev_id);
+void keyboard_add_to_ibuf(char *current_input, int len);
+void keyboard_save_input(keyboard_key_t key);
+struct tm keyboard_get_current_time(void);
 
+extern keyboard_key_t key_table[256];
 extern struct mutex mut;
 extern inputs_t inputs;
 extern struct input_dev *kbd_input_dev;
