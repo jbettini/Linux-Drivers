@@ -3,7 +3,7 @@ NAME := key_driver
 KDIR := /lib/modules/$(shell uname -r)/build
 
 obj-m := $(NAME).o
-$(NAME)-objs := main.o keyboard.o logger.o
+$(NAME)-objs := main.o keyboard.o logger.o utils.o
 
 all:
 	make -C $(KDIR) M=$(PWD) modules

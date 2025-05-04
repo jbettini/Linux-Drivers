@@ -5,6 +5,12 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/input.h>
+#include <linux/timekeeping.h>
+#include <linux/rtc.h>
+#include <linux/kernel.h>
+#include <linux/mutex.h>
+
+struct mutex mut;
 
 #define KBD_DATA_PORT 0x60
 #define KBD_STATUS_PORT 0x64
@@ -21,9 +27,14 @@
 ///////////////////////////////////////////////////////////////////////////
 // Globals
 
+struct inputs_t inputs = {
+    .inputs_lst = NULL,
+    .inputs_buffer = NULL,
+    .ibuf_len = 0
+};
+
 struct input_dev *kbd_input_dev;
 keyboard_key_t key_table[256];
-
 keyboard_key_t press_keys_set_1[256] = {
 
     // letters
@@ -124,7 +135,7 @@ keyboard_key_t press_keys_set_1[256] = {
 };
 
 ///////////////////////////////////////////////////////////////////////////
-// Code 
+// Code For init
 
 void print_key(keyboard_key_t key) {
     printk(KERN_INFO "----------------------------\n");
@@ -188,18 +199,56 @@ void keyboard_load_ps2_conf(int conf) {
     keyboard_flush_ps2();
 }
 
+// Code For init
+///////////////////////////////////////////////////////////////////////////
+
+
+struct tm keyboard_get_current_time(void)
+{
+    struct timespec64 ts;
+    struct tm tm;
+
+    ktime_get_real_ts64(&ts);
+    time64_to_tm(ts.tv_sec, 0, &tm);
+
+    return tm;
+}
+
+void keyboard_add_to_ibuf(char *current_input, int len) {
+    unsigned long int total_len = inputs.ibuf_len + len + 1;
+    char *new_ibuf = kmalloc(total_len ,GFP_KERNEL);
+    if (!new_ibuf) {
+        printk(KERN_ALERT "warning no handling possible for logs: No space left on device\n");
+        return;
+    }
+    snprintf(new_ibuf, total_len, "%s%s", inputs.inputs_buffer ? inputs.inputs_buffer : "", current_input);
+    if (inputs.inputs_buffer)
+        kfree(inputs.inputs_buffer);
+    inputs.inputs_buffer = new_ibuf;
+    inputs.ibuf_len += len;
+}
+
+void keyboard_save_input(keyboard_key_t key) {
+    char    buf[128];
+    struct tm tm = keyboard_get_current_time();
+    int len = snprintf(buf, 128, "%d:%d:%d %s(%x) %s\n", tm.tm_hour, tm.tm_min, tm.tm_sec, key.name, key.keycode, (key.state ? "press" : "released"));
+    ft_lstadd_back(&inputs.inputs_lst, ft_lstnew(ft_strdup(buf)));
+    keyboard_add_to_ibuf(buf, len);
+}
 
 irqreturn_t keyboard_handler(int irq, void *dev_id)
 {
     unsigned char status = inb(0x64);
     if (status & 0x01) {
         uint8_t keycode = inb(0x60);
-        pr_info("keycode : %x\n", keycode);
         keyboard_key_t key = key_table[keycode];
         if (key.keycode) {
             int keycode = key.state == RELEASE ? key.keycode - 0x80 : key.keycode;
             input_report_key(kbd_input_dev, keycode, key.state);
             input_sync(kbd_input_dev);
+            mutex_lock(&mut);
+            keyboard_save_input(key);
+            mutex_unlock(&mut);
         }
     }
     return IRQ_HANDLED;
@@ -217,5 +266,7 @@ int keyboard_init(void)
     return 0;
 }
 
+EXPORT_SYMBOL(mut);
+EXPORT_SYMBOL(inputs);
 EXPORT_SYMBOL(kbd_input_dev);
 EXPORT_SYMBOL(keyboard_init);

@@ -1,0 +1,6 @@
+[x] When misc Read all entries in kernels log
+[] Lock a Buffer Access with mutex
+[] when destroyed return smart data of keys
+[] On destroyed save all data in a kernel logfile and in /tmp/logfile
+[] Do stats at the end of /tmp/logfile
+[] Load Driver on keyboard plug

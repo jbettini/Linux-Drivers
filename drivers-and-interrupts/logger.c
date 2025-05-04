@@ -1,9 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/miscdevice.h>
 #include "logger.h"
 
 static int my_open(struct inode *node, struct file *file)
@@ -30,8 +25,32 @@ static ssize_t my_write(struct file *file, const char __user *user_buf, size_t u
 
 static ssize_t my_read(struct file *file, char __user *user_buf, size_t user_len, loff_t *ppos)
 {
-	printk(KERN_INFO "Misc Device : Hello from Read\n");
-	return 0;
+	mutex_lock(&mut);
+    size_t available = (inputs.ibuf_len - *ppos);
+
+    t_list *tmp = inputs.inputs_lst;
+    while(tmp) {
+        printk(KERN_INFO "%s", (char *)tmp->content);
+        tmp = tmp->next;
+    }
+
+	if (*ppos >= inputs.ibuf_len) {
+		mutex_unlock(&mut);
+		return 0;
+	}
+
+	size_t to_copy = (user_len < (inputs.ibuf_len - *ppos)) ? user_len : (inputs.ibuf_len - *ppos);
+
+    if (copy_to_user(user_buf, inputs.inputs_buffer + *ppos, to_copy)) {
+        pr_err("Misc Device - Error copying data to userspace\n");
+		mutex_unlock(&mut);
+		return -EFAULT;
+    }
+
+    *ppos += to_copy;
+
+	mutex_unlock(&mut);
+    return to_copy;
 }
 
 ////////////////////////////////////////////////////////////

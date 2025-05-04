@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/input.h>
+#include "utils.h"
 
 /*
  * PS/2 Controller Configuration Byte (exemple : 0b01010111)
@@ -41,6 +42,13 @@ typedef struct keyboard_key {
     bool            state;
 }   keyboard_key_t;
 
+typedef struct inputs_t {
+    t_list *inputs_lst;
+    char   *inputs_buffer;
+    unsigned long int ibuf_len;
+} inputs_t;
+
+
 void print_key(keyboard_key_t key);
 void keyboard_set_key(keyboard_key_t *dst, keyboard_key_t src, int state);
 void keyboard_init_key_table(void);
@@ -51,4 +59,6 @@ int	keyboard_init(void);
 int keyboard_input_init(void);
 irqreturn_t keyboard_handler(int irq, void *dev_id);
 
+extern struct mutex mut;
+extern inputs_t inputs;
 extern struct input_dev *kbd_input_dev;

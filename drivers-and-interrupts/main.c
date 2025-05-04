@@ -24,6 +24,8 @@ static void __exit clean(void)
     free_irq(KBD_IRQ, &my_misc);
 	input_unregister_device(kbd_input_dev);
 	misc_deregister(&my_misc);
+	ft_lstclear(&inputs.inputs_lst, kfree);
+	kfree(inputs.inputs_buffer);
 	printk(KERN_INFO "Exiting: cleaning up module\n");
 }
 
