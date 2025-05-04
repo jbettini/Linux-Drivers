@@ -21,6 +21,8 @@ static int __init entrypoint(void)
 
 static void __exit clean(void)
 {
+    free_irq(KBD_IRQ, &my_misc);
+	input_unregister_device(kbd_input_dev);
 	misc_deregister(&my_misc);
 	printk(KERN_INFO "Exiting: cleaning up module\n");
 }

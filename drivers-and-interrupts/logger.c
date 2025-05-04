@@ -24,7 +24,7 @@ static int my_close(struct inode *node, struct file *file)
 
 static ssize_t my_write(struct file *file, const char __user *user_buf, size_t user_len, loff_t *ppos)
 {
-	printk(KERN_INFO "Misc Device : Hello from Write\n");
+	printk(KERN_INFO "Misc Device : Hello from Write : Weird thing here :)\n");
 	return 0;
 }
 
@@ -46,7 +46,7 @@ static const struct file_operations fops = {
 };
 
 struct miscdevice my_misc = {
-	.name = "DriverAndInterrupt",
+	.name = "Keylogger_Misc",
 	.minor = MISC_DYNAMIC_MINOR,
 	.fops = &fops,
 };
