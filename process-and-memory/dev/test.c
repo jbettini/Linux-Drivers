@@ -1,29 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <errno.h>
+#include <string.h>
+#include "pid_info.h"
 
 int main()
 {
     int fd;
-    int32_t value, number;
+    char input[32];
 
-    printf("\nOpening Driver\n");
     fd = open("/dev/proc-mem-dev", O_RDWR);
     if(fd < 0) {
-            printf("Cannot open device file...\n");
-            return 0;
+        perror("Cannot open misc");
+        return 1;
     }
-    int ret = 0;
+
+    struct pid_info *info = malloc(sizeof(struct pid_info));
+    if (!info) {
+        perror("No space left");
+        close(fd);
+        return 1;
+    }
     
-    ret = ioctl(fd, 1, 0);
-    if (ret == 0)
-        printf("SUCESS\n");
-    else
-        printf("ERROR\n");
+    memset(info, 0, sizeof(struct pid_info));
+
+    printf("PID to use: ");
+    if (fgets(input, sizeof(input), stdin) == NULL) {
+        free(info);
+        close(fd);
+        return 1;
+    }
+    info->pid = atoi(input);
+
+    int ret = ioctl(fd, GET_PID_INFO, info);
+
+    if (ret < 0) {
+        printf("Error catched : %s (code %d)\n", strerror(errno), errno);
+    } else {
+        printf("PID    : %d\n", info->pid);
+        printf("State   : %d\n", info->state);
+        printf("Parent : %d\n", info->parent_pid);
+        printf("PWD    : %s\n", info->pwd);
+        printf("Child: %d find\n", info->nb_children);
+        for(int i=0; i < info->nb_children && i < 5; i++)
+            printf("  > Enfant %d: %d\n", i, info->children[i]);
+    }
+    
+    free(info);
     close(fd);
+    return 0;
 }
