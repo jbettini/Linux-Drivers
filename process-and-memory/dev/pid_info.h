@@ -16,7 +16,9 @@ struct pid_info {
     int32_t pid;
     int32_t state;
     int32_t parent_pid;
-    uint64_t age;
+    uint64_t utime;
+    uint64_t stime;
+    uint64_t total_time;
     uint64_t stack_ptr;
     
     uint32_t nb_children;

@@ -7,6 +7,8 @@
 #include <string.h>
 #include "pid_info.h"
 
+#define NS_TO_S(ns) ((double)ns / 1000000000.0)
+
 int main()
 {
     int fd;
@@ -34,6 +36,7 @@ int main()
         return 1;
     }
     info->pid = atoi(input);
+    printf("\n------------------------\n");
 
     int ret = ioctl(fd, GET_PID_INFO, info);
 
@@ -46,8 +49,13 @@ int main()
         printf("PWD    : %s\n", info->pwd);
         printf("Child: %d find\n", info->nb_children);
         for(int i=0; i < info->nb_children && i < 5; i++)
-            printf("  > Enfant %d: %d\n", i, info->children[i]);
-    }
+        printf("  > Enfant %d: %d\n", i, info->children[i]);
+    
+        printf("stack addr : %p\n", (void *)info->stack_ptr);
+        printf("Time in user mode : %.3fs\n", NS_TO_S(info->utime));
+        printf("Time in sys mode : %.3fs\n", NS_TO_S(info->stime));
+        printf("Total time: %.3fs\n", NS_TO_S(info->total_time));
+}
     
     free(info);
     close(fd);

@@ -91,22 +91,35 @@ static void __exit clean(void)
 // -----------------------------------------------------------
 // Main logic
 
+// static void traverse_mounts(struct mount *mnt, struct seq_file *m)
+// {
+//     struct mount *child;
+//     struct path path;
+//     char *buf = kmalloc(PATH_MAX, GFP_KERNEL);
+
+//     list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
+// 	path.mnt = &child->mnt;
+// 	path.dentry = path.mnt->mnt_root;
+//     	seq_printf(m, "%-15s%s\n", child->mnt_devname, d_path(&path, buf, PATH_MAX));
+// 	kfree(buf);
+// 	traverse_mounts(child, m);
+//     }
+// }
+
 long handleIoctl(struct file *f, unsigned int cmd, unsigned long arg) {
 	switch (cmd) {
 		case GET_PID_INFO:
 			printk("Case GET_PID_INFO is Matched.");
+
 			int32_t pid_from_user = 0;
 			if (copy_from_user(&pid_from_user, (void *)arg, sizeof(int32_t)))
 				return -EFAULT;
 
-			struct pid *pid_struct;
-			struct task_struct *task;
-			
-			pid_struct = find_get_pid(pid_from_user);
+			struct pid *pid_struct = find_get_pid(pid_from_user);
 			if (!pid_struct)
 				return -ESRCH;
 
-			task = get_pid_task(pid_struct, PIDTYPE_PID);
+			struct task_struct *task = get_pid_task(pid_struct, PIDTYPE_PID);
 			put_pid(pid_struct); 
 			if (!task)
 				return -ESRCH;
@@ -114,14 +127,21 @@ long handleIoctl(struct file *f, unsigned int cmd, unsigned long arg) {
 			struct pid_info *kinfo = kmalloc(sizeof(struct pid_info), GFP_KERNEL | __GFP_ZERO);
 			if (!kinfo)
 		        return -ENOMEM;
+
 			kinfo->pid = pid_from_user;
 			kinfo->state = READ_ONCE(task->__state);
+			kinfo->parent_pid = task->real_parent ? task->real_parent->pid : 0;
+			kinfo->stack_ptr = (uint64_t)task->stack;
+			kinfo->utime = task->utime;
+			kinfo->stime = task->stime;
+			kinfo->total_time = (task->stime + task->utime);
 			// Logic here parsing of task struct
 
 			if (copy_to_user((void *)arg, kinfo, sizeof(struct pid_info))) {
                 kfree(kinfo);
                 return -EFAULT;
             }
+
 			kfree(kinfo);
 			put_task_struct(task);
 			return 0;
