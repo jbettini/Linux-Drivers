@@ -24,9 +24,7 @@ struct pid_info {
     uint32_t nb_children;
     uint32_t children[MAX_CHILDREN];
     
-    uint32_t root_len;
     uint8_t root[PATH_MAX];
-    uint32_t pwd_len;
     uint8_t pwd[PATH_MAX];
 };
 

@@ -7,7 +7,7 @@
 #include <string.h>
 #include "pid_info.h"
 
-#define NS_TO_S(ns) ((double)ns / 1000000000.0)
+#define NS_TO_S(ns) (ns / 1000000000.0)
 
 int main()
 {
@@ -46,15 +46,18 @@ int main()
         printf("PID    : %d\n", info->pid);
         printf("State   : %d\n", info->state);
         printf("Parent : %d\n", info->parent_pid);
-        printf("PWD    : %s\n", info->pwd);
         printf("Child: %d find\n", info->nb_children);
+        
         for(int i=0; i < info->nb_children && i < 5; i++)
-        printf("  > Enfant %d: %d\n", i, info->children[i]);
+            printf("  > Enfant %d: %d\n", i, info->children[i]);
     
-        printf("stack addr : %p\n", (void *)info->stack_ptr);
+        printf("Stack addr : %p\n", (void *)info->stack_ptr);
         printf("Time in user mode : %.3fs\n", NS_TO_S(info->utime));
         printf("Time in sys mode : %.3fs\n", NS_TO_S(info->stime));
         printf("Total time: %.3fs\n", NS_TO_S(info->total_time));
+
+        printf("Root_path : %s.\n", info->root);
+        printf("Pwd : %s.\n", info->pwd);
 }
     
     free(info);

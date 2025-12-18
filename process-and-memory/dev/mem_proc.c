@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
+#include <linux/fs_struct.h>
 #include "pid_info.h"
 
 MODULE_LICENSE("GPL");
@@ -91,20 +92,27 @@ static void __exit clean(void)
 // -----------------------------------------------------------
 // Main logic
 
-// static void traverse_mounts(struct mount *mnt, struct seq_file *m)
-// {
-//     struct mount *child;
-//     struct path path;
-//     char *buf = kmalloc(PATH_MAX, GFP_KERNEL);
+static void get_child(struct task_struct *task, struct pid_info *kinfo)
+{
+	struct task_struct *child_task;
+	int count = 0;
 
-//     list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
-// 	path.mnt = &child->mnt;
-// 	path.dentry = path.mnt->mnt_root;
-//     	seq_printf(m, "%-15s%s\n", child->mnt_devname, d_path(&path, buf, PATH_MAX));
-// 	kfree(buf);
-// 	traverse_mounts(child, m);
-//     }
-// }
+	list_for_each_entry(child_task, &task->children, sibling) {
+		if (count < MAX_CHILDREN) {
+			kinfo->children[count] = child_task->pid;
+			count++;
+		}
+	}
+	kinfo->nb_children = count;
+}
+
+static void get_fs_path(struct path *path, char *buffer) {
+    char *res = d_path(path, buffer, PATH_MAX);
+    if (IS_ERR(res))
+        buffer[0] = '\0';
+    else
+        memmove(buffer, res, strlen(res) + 1);
+}
 
 long handleIoctl(struct file *f, unsigned int cmd, unsigned long arg) {
 	switch (cmd) {
@@ -128,14 +136,18 @@ long handleIoctl(struct file *f, unsigned int cmd, unsigned long arg) {
 			if (!kinfo)
 		        return -ENOMEM;
 
-			kinfo->pid = pid_from_user;
-			kinfo->state = READ_ONCE(task->__state);
-			kinfo->parent_pid = task->real_parent ? task->real_parent->pid : 0;
-			kinfo->stack_ptr = (uint64_t)task->stack;
-			kinfo->utime = task->utime;
-			kinfo->stime = task->stime;
-			kinfo->total_time = (task->stime + task->utime);
-			// Logic here parsing of task struct
+			kinfo->pid = pid_from_user;											// PID
+			kinfo->state = READ_ONCE(task->__state);							// STATE OF PROCESS
+			kinfo->stack_ptr = (uint64_t)task->stack;							// STACK PTR
+			kinfo->utime = task->utime;											// AGE
+			kinfo->stime = task->stime;											// AGE
+			kinfo->total_time = (task->stime + task->utime);					// AGE
+			get_child(task, kinfo);												// ARRAY OF CHILD
+			kinfo->parent_pid = task->real_parent ? task->real_parent->pid : 0;	// PARENT PID
+
+			get_fs_path(&task->fs->root, kinfo->root);							// ROOT 
+			get_fs_path(&task->fs->pwd, kinfo->pwd);							// PWD
+
 
 			if (copy_to_user((void *)arg, kinfo, sizeof(struct pid_info))) {
                 kfree(kinfo);
