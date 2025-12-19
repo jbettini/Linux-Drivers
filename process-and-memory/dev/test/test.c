@@ -9,6 +9,13 @@
 
 #define NS_TO_S(ns) (ns / 1000000000.0)
 
+
+const char *get_state_string(long state) {
+    if (state == 0) return "Running";
+    if (state == 1 || state == 2) return "Sleeping";
+    return "Stopped/Zombie";
+}
+
 int main()
 {
     int fd;
@@ -44,7 +51,7 @@ int main()
         printf("Error catched : %s (code %d)\n", strerror(errno), errno);
     } else {
         printf("PID    : %d\n", info->pid);
-        printf("State   : %d\n", info->state);
+        printf("State   : %s (%ld)\n", get_state_string(info->state), info->state);
         printf("Parent : %d\n", info->parent_pid);
         printf("Child: %d find\n", info->nb_children);
         
@@ -52,9 +59,7 @@ int main()
             printf("  > Enfant %d: %d\n", i, info->children[i]);
     
         printf("Stack addr : %p\n", (void *)info->stack_ptr);
-        printf("Time in user mode : %.3fs\n", NS_TO_S(info->utime));
-        printf("Time in sys mode : %.3fs\n", NS_TO_S(info->stime));
-        printf("Total time: %.3fs\n", NS_TO_S(info->total_time));
+        printf("Age : %.3fs\n", NS_TO_S(info->total_time));
 
         printf("Root_path : %s.\n", info->root);
         printf("Pwd : %s.\n", info->pwd);

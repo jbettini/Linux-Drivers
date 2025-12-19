@@ -137,11 +137,18 @@ long handleIoctl(struct file *f, unsigned int cmd, unsigned long arg) {
 		        return -ENOMEM;
 
 			kinfo->pid = pid_from_user;											// PID
-			kinfo->state = READ_ONCE(task->__state);							// STATE OF PROCESS
+			long s = READ_ONCE(task->__state);
+			if (s == 0)
+				kinfo->state = 0;      											// Running
+            else if (s <= 2)
+				kinfo->state = 1; 												// Sleeping / Disk Sleep
+            else
+				kinfo->state = 2;												// Stopped / Zombie / Dead
+
 			kinfo->stack_ptr = (uint64_t)task->stack;							// STACK PTR
-			kinfo->utime = task->utime;											// AGE
-			kinfo->stime = task->stime;											// AGE
-			kinfo->total_time = (task->stime + task->utime);					// AGE
+
+			kinfo->total_time = ktime_get_ns() - task->start_time;				// AGE
+
 			get_child(task, kinfo);												// ARRAY OF CHILD
 			kinfo->parent_pid = task->real_parent ? task->real_parent->pid : 0;	// PARENT PID
 

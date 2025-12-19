@@ -1,0 +1,197 @@
+From e5b713db97c7fc125aab41e993b2f3b395d596be Mon Sep 17 00:00:00 2001
+From: jbettini <ashhxtm@gmail.com>
+Date: Fri, 19 Dec 2025 04:32:14 +0100
+Subject: [PATCH] Add get_pid_info system call
+
+---
+ arch/x86/entry/syscalls/syscall_64.tbl |  1 +
+ include/linux/pid_info.h               | 29 ++++++++
+ include/linux/syscalls.h               |  3 +
+ kernel/Makefile                        |  3 +-
+ kernel/sys_get_pid_info.c              | 92 ++++++++++++++++++++++++++
+ 5 files changed, 127 insertions(+), 1 deletion(-)
+ create mode 100644 include/linux/pid_info.h
+ create mode 100644 kernel/sys_get_pid_info.c
+
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index a396f6e6a..9f03895db 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -384,6 +384,7 @@
+ 460	common	lsm_set_self_attr	sys_lsm_set_self_attr
+ 461	common	lsm_list_modules	sys_lsm_list_modules
+ 462 	common  mseal			sys_mseal
++463 common get_pid_info sys_get_pid_info
+ 
+ #
+ # Due to a historical design error, certain syscalls are numbered differently
+diff --git a/include/linux/pid_info.h b/include/linux/pid_info.h
+new file mode 100644
+index 000000000..c16927834
+--- /dev/null
++++ b/include/linux/pid_info.h
+@@ -0,0 +1,29 @@
++#ifndef PID_INFO_H
++#define PID_INFO_H
++
++#include <linux/limits.h>
++
++#ifdef __KERNEL__
++#include <linux/types.h>
++#else
++#include <stdint.h>
++#endif
++
++#define MAX_CHILDREN 4096
++#define GET_PID_INFO 1
++
++struct pid_info {
++    int pid;
++    int state;
++    int parent_pid;
++    long long total_time;
++    long long stack_ptr;
++    
++    unsigned int nb_children;
++    int children[MAX_CHILDREN];
++    
++    char root[PATH_MAX];
++    char pwd[PATH_MAX];
++};
++
++#endif
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index fff820c3e..cb36031ef 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -77,6 +77,7 @@ struct cachestat_range;
+ struct cachestat;
+ struct statmount;
+ struct mnt_id_req;
++struct pid_info;
+ 
+ #include <linux/types.h>
+ #include <linux/aio_abi.h>
+@@ -1301,4 +1302,6 @@ int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
+ 		int __user *optlen);
+ int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
+ 		int optlen);
++
++asmlinkage long sys_get_pid_info(struct pid_info __user *user_info, int target_pid);
+ #endif
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 3c13240df..f1dba8e5c 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -10,7 +10,8 @@ obj-y     = fork.o exec_domain.o panic.o \
+ 	    extable.o params.o \
+ 	    kthread.o sys_ni.o nsproxy.o \
+ 	    notifier.o ksysfs.o cred.o reboot.o \
+-	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o
++	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o \
++		sys_get_pid_info.o
+ 
+ obj-$(CONFIG_USERMODE_DRIVER) += usermode_driver.o
+ obj-$(CONFIG_MULTIUSER) += groups.o
+diff --git a/kernel/sys_get_pid_info.c b/kernel/sys_get_pid_info.c
+new file mode 100644
+index 000000000..04580c83e
+--- /dev/null
++++ b/kernel/sys_get_pid_info.c
+@@ -0,0 +1,92 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <linux/fs.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/miscdevice.h>
++#include <linux/sched.h>
++#include <linux/pid.h>
++#include <linux/slab.h>
++#include <linux/fs_struct.h>
++#include <linux/uaccess.h>
++#include <linux/syscalls.h>
++#include <linux/pid_info.h>
++
++static void get_child(struct task_struct *task, struct pid_info *kinfo);
++static void get_fs_path(struct path *path, char *buffer);
++
++static void get_child(struct task_struct *task, struct pid_info *kinfo)
++{
++    struct task_struct *child_task;
++    int count = 0;
++
++    list_for_each_entry(child_task, &task->children, sibling) {
++        if (count < MAX_CHILDREN) {
++            kinfo->children[count] = child_task->pid;
++            count++;
++        }
++    }
++    kinfo->nb_children = count;
++}
++
++static void get_fs_path(struct path *path, char *buffer) {
++    char *res = d_path(path, buffer, PATH_MAX);
++    if (IS_ERR(res))
++        buffer[0] = '\0';
++    else
++        memmove(buffer, res, strlen(res) + 1);
++}
++
++SYSCALL_DEFINE2(get_pid_info, struct pid_info __user *, user_info, int, target_pid)
++{
++    long s;
++    struct pid *pid_struct;
++    struct task_struct *task;
++    struct pid_info *kinfo;
++
++    pid_struct = find_get_pid(target_pid);
++    if (!pid_struct)
++        return -ESRCH;
++
++    task = get_pid_task(pid_struct, PIDTYPE_PID);
++    put_pid(pid_struct); 
++    if (!task)
++        return -ESRCH;
++
++    kinfo = kmalloc(sizeof(struct pid_info), GFP_KERNEL | __GFP_ZERO);
++    if (!kinfo) {
++        put_task_struct(task);
++        return -ENOMEM;
++    }
++
++    kinfo->pid = target_pid;											// PID
++    
++    s = READ_ONCE(task->__state);										// State
++    if (s == 0)
++		kinfo->state = 0;      												// Running
++    else if (s <= 2)
++		kinfo->state = 1; 													// Sleeping
++    else
++		kinfo->state = 2;             										// Zombie/Dead
++
++    kinfo->stack_ptr = (long long)task->stack;							// Stack Ptr
++    kinfo->total_time = ktime_get_ns() - task->start_time;				// Age
++
++    get_child(task, kinfo);												// Children
++    kinfo->parent_pid = task->real_parent ? task->real_parent->pid : 0; // Parent PID
++
++    if (task->fs) {
++        get_fs_path(&task->fs->root, kinfo->root);						// Root Path
++        get_fs_path(&task->fs->pwd, kinfo->pwd);						// Pwd Path
++    }
++
++    if (copy_to_user((void *)user_info, kinfo, sizeof(struct pid_info))) {
++        kfree(kinfo);
++        put_task_struct(task);
++        return -EFAULT;
++    }
++
++    kfree(kinfo);
++    put_task_struct(task);
++    return 0;
++}
+\ No newline at end of file
+-- 
+2.44.0
+
